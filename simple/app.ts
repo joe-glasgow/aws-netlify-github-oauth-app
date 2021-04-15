@@ -1,40 +1,73 @@
 import {Request, Response} from 'express';
-import {gql, GraphQLClient} from 'graphql-request'
 
-const express = require('express')
-const app = express()
-const port = 3000
+const express = require("express");
+const tiny = require("tiny-json-http");
 
-app.get('/', (req: Request, res: Response) => {
-    res.send('Hello World!')
-})
+const client_id = process.env.GITHUB_OAUTH_CLIENTID;
+const client_secret = process.env.GITHUB_OAUTH_CLIENTSECRET;
+const authUrl = `https://github.com/login/oauth/authorize?client_id=${client_id}&scope=repo,user`;
+const tokenUrl = "https://github.com/login/oauth/access_token";
 
-const query = gql`
-    query MyQuery {
-        getDemos {
-            id
-        }
-    }
-`
+const app = express();
 
-const client = new GraphQLClient(process.env.GRAPHQL_URL || '', {
-    headers: {
-        'x-api-key': process.env.API_KEY || '',
-    }
-})
+// NetlifyCMS doesn't use this root page. It's only for dev purposes
+app.get("/", (req: Request, res: Response) => {
+    res.send(`<a href="${authUrl}">Login with Github</a>`);
+});
 
-app.get('/endpoint', (req: Request, res: Response) => {
+// NetlifyCMS expects to land on a page at /auth.
+app.get("/auth", (req: Request, res: Response) => res.redirect(authUrl));
+
+// @ts-ignore
+app.get("/callback", async (req: Request, res: Response) => {
+    const data = {
+        code: req.query.code,
+        client_id,
+        client_secret
+    };
+
     try {
-        client.request(query, {}).then((data) => res.json(data))
-    } catch (e) {
-        res.json({
-            message: e
-        })
-    }
-})
+        const { body } = await tiny.post({
+            url: tokenUrl,
+            data,
+            headers: {
+                // GitHub returns a string by default, ask for JSON to make the reponse easier to parse.
+                "Accept": "application/json"
+            }
+        });
 
-app.listen(port, () => {
-    console.log(`apiKey: ${process.env.API_KEY}`)
-    console.log(`GraphQL Endpoint: ${process.env.GRAPHQL_URL}`)
-    console.log(`Example app listening at http://localhost:${port}`)
-})
+        const postMsgContent = {
+            token: body.access_token,
+            provider: "github"
+        };
+
+        // This is what talks to the NetlifyCMS page. Using window.postMessage we give it the
+        // token details in a format it's expecting
+        const script = `
+    <script>
+    (function() {
+      function recieveMessage(e) {
+        console.log("recieveMessage %o", e);
+        
+        // send message to main window with the app
+        window.opener.postMessage(
+          'authorization:github:success:${JSON.stringify(postMsgContent)}', 
+          e.origin
+        );
+      }
+
+      window.addEventListener("message", recieveMessage, false);
+      window.opener.postMessage("authorizing:github", "*");
+    })()
+    </script>`;
+
+        return res.send(script);
+
+    } catch (err) {
+        // If we hit an error we'll handle that here
+        console.log(err);
+        res.redirect("/?error=😡");
+    }
+});
+
+app.listen(process.env.PORT);

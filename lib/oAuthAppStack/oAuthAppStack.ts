@@ -7,8 +7,9 @@ import WebAppWaf from "./waf/waf";
 import vpc from "./vpc/vpc";
 import applicationLoadBalancedService from "./applicationLoadBalancedService/applicationLoadBalancedService";
 import path from 'path';
+import {StringParameter} from "@aws-cdk/aws-ssm";
 
-export class WebappStack extends cdk.Stack {
+export class OauthAppStack extends cdk.Stack {
     constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
         super(scope, id, props);
         // provide domain name in cdk.json or via CLI e.g. -c domain=<sub.mydomain.com | mydomain.com>
@@ -33,8 +34,8 @@ export class WebappStack extends cdk.Stack {
         // Path to application directory with Dockerfile
         const imagePath = path.resolve(__dirname, '../../simple')
         const envSecrets = {
-            AWS_ACCESS_KEY_ID: this.node.tryGetContext('aws-access-key'),
-            AWS_SECRET_ACCESS_KEY: this.node.tryGetContext('aws-secret-access-key')
+            GITHUB_OAUTH_CLIENTSECRET: StringParameter.valueFromLookup(this, 'GITHUB_OAUTH_CLIENTSECRET'),
+            GITHUB_OAUTH_CLIENTID: StringParameter.valueFromLookup(this, 'GITHUB_OAUTH_CLIENTID')
         }
 
         const appService = applicationLoadBalancedService({
@@ -46,6 +47,7 @@ export class WebappStack extends cdk.Stack {
             imagePath,
             envSecrets
         })
+        // attach policy
         // Redirects HTTP to HTTPS as default if no configuration provided - ideal!
         appService.loadBalancer.addRedirect()
 
