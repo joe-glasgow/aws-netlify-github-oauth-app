@@ -1,12 +1,12 @@
 # AWS ECS Simple NodeJS App for Netlify Github Oauth!
 
-This Project is a boilerplate for running a secure NodeJS app through ECS using Fargate with CDK.
+This Project is a boilerplate for running a secure NodeJS app for Github Oauth through ECS using Fargate with CDK.
 
 Based on a previous app created by [TylerGaw](https://glitch.com/edit/#!/netlify-cms-github-oauth-provider-example).
 
 Full blog post [here](https://tylergaw.com/blog/netlify-cms-custom-oath-provider/).
 
-The application provides Oauth for a [NetlifyCMS](https://www.netlifycms.org/) application.
+The application provides Oauth for a [NetlifyCMS](https://www.netlifycms.org/) application (or any Github auth flow).
 
 Provided with a basic [WAF](https://aws.amazon.com/waf/)
 
